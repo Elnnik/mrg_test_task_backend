@@ -27,7 +27,7 @@ userAnswerToQuizzSchema.methods = {
     createInitUserAnswerToQuizzToken: async function () {
         try {
             const _id = this._id
-            return jwt.sign({initUserAnswerToQuizzId: _id}, process.env.ACCESS_TOKEN_PRIVATE_KEY, {
+            return jwt.sign({initUserAnswerToQuizzId: _id}, process.env.INIT_USER_ANSWER_TO_QUIZZ_TOKEN_PRIVATE_KEY, {
                 algorithm: 'RS256',
                 expiresIn: '10m'
             })

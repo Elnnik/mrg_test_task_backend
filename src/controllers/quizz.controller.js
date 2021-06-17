@@ -74,7 +74,7 @@ async function getQuizz(req, res) {
 
 async function createQuizz({body: {name, description, questions}}, res) {
     /*
-    Функция для создания теста, не входил в задание, разработан для удобства добавления тестов.
+    Функция для создания теста, функционал не входил в задание, разработан для удобства добавления тестов.
     */
     try {
         const quizz = await Quizz.create({name, description, questions})
@@ -93,7 +93,7 @@ async function getQuizzResult (req, res) {
         const initUserAnswerToQuizzIdCookieToken = req.cookies['initUserAnswerToQuizzToken']
         try {
             const decodedInitUserAnswerToQuizzIdCookieToken = jwt.verify(initUserAnswerToQuizzIdCookieToken,
-                process.env.ACCESS_TOKEN_PUBLIC_KEY, {algorithm: 'RS256'})
+                process.env.INIT_USER_ANSWER_TO_QUIZZ_TOKEN_PUBLIC_KEY, {algorithm: 'RS256'})
             const userAnswerToQuizzDocument = await userAnswerToQuizz.findById(decodedInitUserAnswerToQuizzIdCookieToken.initUserAnswerToQuizzId)
             const quizzResultData = {
                 result: userAnswerToQuizzDocument.result,
@@ -169,7 +169,7 @@ async function sendQuizzAnswers(req, res) {
         const initUserAnswerToQuizzIdCookieToken = req.cookies['initUserAnswerToQuizzToken']
         try {
             const decodedInitUserAnswerToQuizzIdCookieToken = jwt.verify(initUserAnswerToQuizzIdCookieToken,
-                process.env.ACCESS_TOKEN_PUBLIC_KEY, {algorithm: 'RS256'})
+                process.env.INIT_USER_ANSWER_TO_QUIZZ_TOKEN_PUBLIC_KEY, {algorithm: 'RS256'})
 
             const userAnswersToQuestionsList = req.body.questions;
 
