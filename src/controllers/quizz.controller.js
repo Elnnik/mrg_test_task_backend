@@ -5,22 +5,25 @@ require('dotenv').config()
 
 
 async function isUserHasAvailableAttempts(quizzId, userId) {
+    // Проверка доступных попыток пользователя для прохождения теста
     const userAttemptsForQuizz = await userAnswerToQuizz.find({
             $and: [{userId: userId}, {quizzId: quizzId}]
         }
     )
-    // console.log(userAttemptsForQuizz.length)
     return (userAttemptsForQuizz.length < 3)
 }
 
 async function getQuizz(req, res) {
+    /*
+    Функция для получения данных теста (вопросы + варианты ответа).
+    При обращении к контроллеру создается инициализирующий объект ответов пользователя на вопросы с "пустыми ответами" и
+    подписывается токен initUserAnswerToQuizzToken с временем действия 10 минут для введения ограничения по времени,
+    токен возвращается в Cookie.
+     */
 
     const quizzId = req.params.id
-    // console.log('res.locals: ', res.locals.newAccessToken)
 
     try {
-        console.log('res.locals: ', res.locals.newAccessToken)
-
         const quizz = await Quizz.findById(quizzId)
         const quizzObjectNoCorrectAnswers = quizz.toObject()
 
@@ -44,9 +47,7 @@ async function getQuizz(req, res) {
                     quizzId: quizzId,
                     questions: []
                 })
-                // console.log(initUserAnswerToQuizz)
                 const initUserAnswerToQuizzToken = await initUserAnswerToQuizz.createInitUserAnswerToQuizzToken()
-                // console.log(initUserAnswerToQuizzToken)
 
                 if (res.locals.newAccessToken) {
                     return res
@@ -61,7 +62,7 @@ async function getQuizz(req, res) {
                         .json(quizzObjectNoCorrectAnswers)
                 }
             } catch (error) {
-                return res.status(400).json({"error": "Ошибка при создании болванки 2"})
+                return res.status(400).json({"error": "Ошибка при создании инициализирующего объекта с ответами"})
             }
         }
 
@@ -72,6 +73,9 @@ async function getQuizz(req, res) {
 }
 
 async function createQuizz({body: {name, description, questions}}, res) {
+    /*
+    Функция для создания теста, не входил в задание, разработан для удобства добавления тестов.
+    */
     try {
         const quizz = await Quizz.create({name, description, questions})
         return res.status(200).json({'Created quizz': quizz})
@@ -81,13 +85,16 @@ async function createQuizz({body: {name, description, questions}}, res) {
 }
 
 async function getQuizzResult (req, res) {
+    /*
+    Функция для получения результатов выполнения теста, внутри выполняется проверка по времени через верификацию токена
+    initUserAnswerToQuizzToken
+    */
     try {
         const initUserAnswerToQuizzIdCookieToken = req.cookies['initUserAnswerToQuizzToken']
         try {
             const decodedInitUserAnswerToQuizzIdCookieToken = jwt.verify(initUserAnswerToQuizzIdCookieToken,
                 process.env.ACCESS_TOKEN_PUBLIC_KEY, {algorithm: 'RS256'})
             const userAnswerToQuizzDocument = await userAnswerToQuizz.findById(decodedInitUserAnswerToQuizzIdCookieToken.initUserAnswerToQuizzId)
-            console.log(userAnswerToQuizzDocument)
             const quizzResultData = {
                 result: userAnswerToQuizzDocument.result,
                 mark: userAnswerToQuizzDocument.mark
@@ -102,25 +109,27 @@ async function getQuizzResult (req, res) {
 }
 
 async function sendQuizzAnswers(req, res) {
+    /*
+    Функция для отправки ответов на тест, ответы на тест добавляются в инициализирующий объект initUserAnswerToQuizzToken
+    */
     async function returnQuestionCorrectAnswers(userQuestionsWithAnswersList, quizzQuestionsList) {
+        /*
+        Функция для сравнения и подсчета правильных ответов
+        */
         let correctAnswersCounter = 0;
 
         for (const userQuestionWithAnswers of userQuestionsWithAnswersList) {
-            // console.log(userQuestionWithAnswers)
             const questionId = userQuestionWithAnswers._id;
             const quizzQuestion = quizzQuestionsList.find(question => (question._id.toString() === questionId));
-            // console.log(quizzQuestion.answers);
 
             const quizzQuestionAnswersList = quizzQuestion.answers;
             const correctAnswersIdsList = quizzQuestionAnswersList.reduce((outputList, answerObject) => (
                 answerObject.isCorrect && outputList.push(answerObject._id.toString()), outputList), []);
 
-            // console.log('Correct answers: ', correctAnswersIdsList, typeof correctAnswersIdsList);
 
             const userAnswers = userQuestionWithAnswers.answers;
             const userAnswersIds = userAnswers.reduce((outputList, answerObject) => (
                 outputList.push(answerObject._id), outputList), []);
-            // console.log('User answers: ', userAnswersIds);
 
             userAnswersIds.sort();
             correctAnswersIdsList.sort();
@@ -128,12 +137,15 @@ async function sendQuizzAnswers(req, res) {
             if (correctAnswersIdsList.length === userAnswersIds.length && correctAnswersIdsList.every(function (u, i) {
                 return u === userAnswersIds[i];
             })) correctAnswersCounter++ ;
-            // console.log('\n', 'Correct answers counter is: ', correctAnswersCounter)
         }
         return correctAnswersCounter;
     }
 
     async function resultToMarkConvert(result) {
+        /*
+        Конвертация из процента правильных ответов в итоговую оценку
+        */
+
         if (result >= 0.95) return 5
         if (result >= 0.85 && result < 0.95) return 4
         if (result >= 0.75 && result < 0.85) return 3
@@ -141,8 +153,6 @@ async function sendQuizzAnswers(req, res) {
     }
 
     try {
-
-        console.log('DEBUG')
         const quizzId = req.params.id;
         const quizz = await Quizz.findOne({_id: quizzId});
         const quizzQuestionsList = quizz.questions;
@@ -160,13 +170,10 @@ async function sendQuizzAnswers(req, res) {
         try {
             const decodedInitUserAnswerToQuizzIdCookieToken = jwt.verify(initUserAnswerToQuizzIdCookieToken,
                 process.env.ACCESS_TOKEN_PUBLIC_KEY, {algorithm: 'RS256'})
-            console.log(decodedInitUserAnswerToQuizzIdCookieToken)
 
             const userAnswersToQuestionsList = req.body.questions;
 
             const correctAnswersCount = await returnQuestionCorrectAnswers(userAnswersToQuestionsList, quizzQuestionsList);
-            console.log(correctAnswersCount)
-            console.log(decodedInitUserAnswerToQuizzIdCookieToken)
             const result = correctAnswersCount / quizzQuestionsList.length;
             const mark = await resultToMarkConvert(result)
 
@@ -177,9 +184,8 @@ async function sendQuizzAnswers(req, res) {
                 isInit: false
             }, function (error, userAnswer) {
                 if (error) return res.status(400).json({'userAnswerToQuizzUpdateError': error})
-                console.log(userAnswer)
             })
-            console.log('AFTER CREATE')
+
             return res.status(200).json(quizz)
         } catch (error) {
             return res.status(400).json({'error': error})
