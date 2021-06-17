@@ -1,6 +1,6 @@
 const express = require('express')
 const mongoose = require('mongoose')
-const { routes } = require('../backend/src/routes')
+const { routes } = require('../mrg_test_task_backend/src/routes')
 const cookieParser = require('cookie-parser')
 const dotenv = require('dotenv').config()
 const cors = require('cors')
@@ -17,7 +17,7 @@ app.use(cookieParser())
 
 const corsOptions = {
     credentials: true,
-    origin: 'http://localhost:8000',
+    origin: 'http://217.160.214.250',
     optionsSuccessStatus: 200
 }
 
